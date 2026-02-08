@@ -1,5 +1,19 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
+// Check if backend is running
+export async function checkBackendHealth() {
+  try {
+    const response = await fetch(`${API_BASE}/`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    return response.ok
+  } catch (error) {
+    console.error('Backend not reachable:', error)
+    return false
+  }
+}
+
 export interface VideoRequest {
   script: string
   style: string[]
@@ -23,7 +37,7 @@ export async function generateVideo(request: VideoRequest): Promise<TaskResponse
   })
   
   if (!response.ok) {
-    throw new Error('Failed to generate video')
+    throw new Error('Failed to generate video. Make sure backend is running on port 8000.')
   }
   
   return response.json()
