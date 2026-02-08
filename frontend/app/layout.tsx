@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/Navbar'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'AI Video Generator - Free',
@@ -17,7 +14,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} min-h-screen bg-gradient-to-br from-gray-900 to-black`}>
+      <head>
+        {/* Use system fonts instead of Google Fonts */}
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        `}</style>
+      </head>
+      <body className="min-h-screen bg-gradient-to-br from-gray-900 to-black">
         <Navbar />
         {children}
       </body>
