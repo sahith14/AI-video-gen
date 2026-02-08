@@ -6,13 +6,6 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from services.ffmpeg_service import animate_single_image
 
-clips = []
-
-for i, img in enumerate(images):
-    clip = f"temp_clip_{i}.mp4"
-    animate_single_image(img, clip)
-    clips.append(clip)
-
 class VideoService:
     def __init__(self):
         self.output_dir = "output"
@@ -117,6 +110,49 @@ class VideoService:
             '-t', '10', output_path
         ], capture_output=True)
         return output_path
+
+    def create_animated_video_from_images(
+    self,
+    images: list,
+    audio_path: str,
+    output_id: str
+) -> str:
+    clips = []
+
+    # 1. Animate each image into a clip
+    for i, img in enumerate(images):
+        clip_path = f"{self.temp_dir}/clip_{i}.mp4"
+        animate_single_image(img, clip_path)
+        clips.append(clip_path)
+
+    # 2. Create concat file
+    concat_path = f"{self.temp_dir}/clips.txt"
+    with open(concat_path, "w") as f:
+        for c in clips:
+            f.write(f"file '{os.path.abspath(c)}'\n")
+
+    # 3. Concatenate clips (no audio yet)
+    silent_video = f"{self.temp_dir}/video_no_audio.mp4"
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", concat_path,
+        "-c", "copy",
+        silent_video
+    ], check=True)
+
+    # 4. Merge audio
+    final_path = f"{self.output_dir}/{output_id}.mp4"
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-i", silent_video,
+        "-i", audio_path,
+        "-shortest",
+        final_path
+    ], check=True)
+
+    return final_path
     
     async def create_ken_burns_video(self, image_path: str, audio_path: str, output_id: str) -> str:
         """Create video with Ken Burns effect"""
