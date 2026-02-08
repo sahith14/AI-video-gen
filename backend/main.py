@@ -102,6 +102,12 @@ async def process_video_task(task_id: str, request: VideoRequest):
         tasks[task_id]["status"] = "failed"
         tasks[task_id]["message"] = f"Error: {str(e)}"
         print(f"❌ Task failed: {e}")
+    
+    # Add this after VideoRequest class
+    class TaskResponse(BaseModel):
+        task_id: str
+        status: str
+        message: str
 
 @app.post("/api/generate", response_model=TaskResponse)
 async def generate_video(request: VideoRequest, background_tasks: BackgroundTasks):
@@ -155,8 +161,9 @@ async def get_status(task_id: str):
         "video_id": task.get("video_id")
     }
     
+    # Change this in get_status endpoint:
     if task.get("video_id"):
-        response["video_url"] = f"/api/videos/{task['video_id']}"
+        response["video_url"] = f"/output/{task['video_id']}.mp4"  # Changed from /api/videos/
     
     return response
 
@@ -166,6 +173,11 @@ async def get_video(video_id: str):
     
     if not os.path.exists(video_path):
         raise HTTPException(status_code=404, detail="Video not found")
+
+    return {
+        "download_url": f"/output/{video_id}.mp4",
+        "stream_url": f"/api/videos/{video_id}"
+    }
     
     # Clean up old videos
     cleanup_old_videos()
@@ -216,6 +228,8 @@ async def process_video_task(task_id: str, request: VideoRequest):
         video_service = VideoService()
         
         tasks[task_id]["progress"] = 10
+        # Inside process_video_task, add this line after setting progress:
+        tasks[task_id]["status"] = "processing"  # Add this line
         tasks[task_id]["message"] = "Processing prompt..."
         
         # MVP: Just use the whole prompt as one scene
