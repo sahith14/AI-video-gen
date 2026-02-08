@@ -1,4 +1,3 @@
-# services/video_service.py
 import os
 import subprocess
 import asyncio
