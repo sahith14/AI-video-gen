@@ -4,6 +4,14 @@ import asyncio
 import uuid
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+from services.ffmpeg_service import animate_single_image
+
+clips = []
+
+for i, img in enumerate(images):
+    clip = f"temp_clip_{i}.mp4"
+    animate_single_image(img, clip)
+    clips.append(clip)
 
 class VideoService:
     def __init__(self):
