@@ -26,6 +26,20 @@ class FFmpegService:
             return 0
     
     @staticmethod
+
+    def animate_single_image(image_path: str, output_path: str):
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-loop", "1",
+        "-i", image_path,
+        "-t", "3",
+        "-vf",
+        "scale=1280:720,zoompan=z='zoom+0.002':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90",
+        "-r", "30",
+        "-pix_fmt", "yuv420p",
+        output_path
+    ], check=True)
+    
     def compress_video(input_path: str, output_path: str, target_size_mb: int = 10):
         """Compress video to target size"""
         # Get current duration
