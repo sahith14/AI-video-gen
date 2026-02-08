@@ -34,7 +34,7 @@ export default function RenderPage() {
         const data = await response.json()
         
         setProgress(data.progress || 0)
-        setStatus(data.status || 'Processing...')
+        setStatus(data.message || 'Processing...')
         
         if (data.video_id) {
           setVideoId(data.video_id)
@@ -47,7 +47,7 @@ export default function RenderPage() {
         else if (data.progress < 80) setStep(3)
         else setStep(4)
         
-        if (data.status === 'completed') {
+        if (data.status === 'completed' || data.progress === 100) {
           clearInterval(interval)
           setTimeout(() => {
             router.push(`/download?videoId=${data.video_id}`)
