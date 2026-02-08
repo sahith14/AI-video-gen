@@ -1,9 +1,9 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-// Check if backend is running
+// Add this function to frontend/lib/api.ts
 export async function checkBackendHealth() {
   try {
-    const response = await fetch(`${API_BASE}/`, {
+    const response = await fetch('http://localhost:8000/', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     })
