@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Mic, Video, User, Palette, Sparkles, AlertCircle } from 'lucide-react'
 import PromptInput from '@/components/PromptInput'
 import StyleSelector from '@/components/StyleSelector'
-import { checkBackendHealth } from '@/lib/api'
+import { checkBackendHealth } from '@/api'
 
 export default function CreatePage() {
   const router = useRouter()
