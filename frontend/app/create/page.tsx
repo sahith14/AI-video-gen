@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Mic, Video, User, Palette, Sparkles } from 'lucide-react'
+import { Mic, Video, User, Palette, Sparkles, AlertCircle } from 'lucide-react'
 import PromptInput from '@/components/PromptInput'
 import StyleSelector from '@/components/StyleSelector'
+import { checkBackendHealth } from '@/lib/api'
 
 export default function CreatePage() {
   const router = useRouter()
@@ -13,6 +14,20 @@ export default function CreatePage() {
   const [avatar, setAvatar] = useState('male')
   const [voice, setVoice] = useState('male')
   const [isLoading, setIsLoading] = useState(false)
+  const [backendConnected, setBackendConnected] = useState(true)
+
+  // Check backend connection on mount
+  useEffect(() => {
+    async function checkConnection() {
+      const isConnected = await checkBackendHealth()
+      setBackendConnected(isConnected)
+      
+      if (!isConnected) {
+        console.error('Backend not connected. Please run: cd backend && python main.py')
+      }
+    }
+    checkConnection()
+  }, [])
 
   const exampleScripts = [
     "Welcome to our productivity masterclass. Today we'll learn how to achieve more in less time through focused work and smart planning.",
@@ -48,6 +63,40 @@ export default function CreatePage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Add this before the return statement:
+  if (!backendConnected) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="glass-effect rounded-2xl p-8 max-w-md">
+          <div className="flex items-center mb-4 text-red-400">
+            <AlertCircle className="h-8 w-8 mr-2" />
+            <h1 className="text-2xl font-bold">Backend Not Connected</h1>
+          </div>
+          
+          <p className="text-gray-300 mb-4">
+            The AI video generation backend is not running.
+          </p>
+          
+          <div className="space-y-3 text-sm text-gray-400">
+            <p>Please open a terminal and run:</p>
+            <code className="block p-3 bg-gray-800 rounded-lg">
+              cd backend<br />
+              python main.py
+            </code>
+            <p>Then refresh this page.</p>
+          </div>
+          
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 w-full py-3 bg-blue-500 hover:bg-blue-600 rounded-lg font-semibold"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
