@@ -46,6 +46,63 @@ tasks = {}
 async def root():
     return {"message": "AI Video Generator API", "status": "running"}
 
+# Add this function BEFORE the @app.post("/api/generate") route
+async def process_video_task(task_id: str, request: VideoRequest):
+    """MVP: Simple pipeline - Prompt → Image → Voice → Video"""
+    try:
+        # Try to import here to avoid circular imports
+        from services.video_service import VideoService
+        video_service = VideoService()
+        
+        tasks[task_id]["progress"] = 10
+        tasks[task_id]["message"] = "Processing prompt..."
+        tasks[task_id]["status"] = "processing"
+        
+        # MVP: Just use the whole prompt as one scene
+        scene = request.script
+        
+        tasks[task_id]["progress"] = 30
+        tasks[task_id]["message"] = "Creating image..."
+        
+        # Generate placeholder image
+        image_path = await video_service.create_placeholder_image(
+            prompt=scene,
+            filename=f"scene_{task_id}"
+        )
+        
+        tasks[task_id]["progress"] = 50
+        tasks[task_id]["message"] = "Generating voice..."
+        
+        # Generate voice (limit to 100 chars for speed)
+        text_for_voice = scene[:100] if len(scene) > 100 else scene
+        audio_path = await video_service.generate_simple_voice(
+            text=text_for_voice,
+            voice_type=request.voice
+        )
+        
+        tasks[task_id]["progress"] = 70
+        tasks[task_id]["message"] = "Creating video..."
+        
+        # Create Ken Burns video
+        video_id = f"video_{uuid.uuid4().hex[:8]}"
+        final_path = await video_service.create_ken_burns_video(
+            image_path=image_path,
+            audio_path=audio_path,
+            output_id=video_id
+        )
+        
+        tasks[task_id]["progress"] = 100
+        tasks[task_id]["status"] = "completed"
+        tasks[task_id]["message"] = "Video ready!"
+        tasks[task_id]["video_id"] = video_id
+        
+        print(f"✅ Video generated: {final_path}")
+        
+    except Exception as e:
+        tasks[task_id]["status"] = "failed"
+        tasks[task_id]["message"] = f"Error: {str(e)}"
+        print(f"❌ Task failed: {e}")
+
 @app.post("/api/generate", response_model=TaskResponse)
 async def generate_video(request: VideoRequest, background_tasks: BackgroundTasks):
     task_id = str(uuid.uuid4())
