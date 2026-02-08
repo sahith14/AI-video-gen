@@ -8,7 +8,6 @@ import uuid
 import os
 from datetime import datetime, timedelta
 import shutil
-import uuid
 import asyncio
 
 app = FastAPI(title="AI Video Generator API", version="1.0.0")
@@ -27,7 +26,7 @@ os.makedirs("output", exist_ok=True)
 os.makedirs("temp", exist_ok=True)
 app.mount("/output", StaticFiles(directory="output"), name="output")
 
-# Models
+# ========== MODELS ==========
 class VideoRequest(BaseModel):
     script: str
     style: List[str] = ["cinematic"]
@@ -39,14 +38,10 @@ class TaskResponse(BaseModel):
     status: str
     message: str
 
-# In-memory storage for tasks
-tasks = {}
+# ========== GLOBAL VARIABLES ==========
+tasks = {}  # In-memory storage for tasks
 
-@app.get("/")
-async def root():
-    return {"message": "AI Video Generator API", "status": "running"}
-
-# Add this function BEFORE the @app.post("/api/generate") route
+# ========== BACKGROUND TASK FUNCTION ==========
 async def process_video_task(task_id: str, request: VideoRequest):
     """MVP: Simple pipeline - Prompt → Image → Voice → Video"""
     try:
@@ -55,8 +50,8 @@ async def process_video_task(task_id: str, request: VideoRequest):
         video_service = VideoService()
         
         tasks[task_id]["progress"] = 10
-        tasks[task_id]["message"] = "Processing prompt..."
         tasks[task_id]["status"] = "processing"
+        tasks[task_id]["message"] = "Processing prompt..."
         
         # MVP: Just use the whole prompt as one scene
         scene = request.script
@@ -102,12 +97,11 @@ async def process_video_task(task_id: str, request: VideoRequest):
         tasks[task_id]["status"] = "failed"
         tasks[task_id]["message"] = f"Error: {str(e)}"
         print(f"❌ Task failed: {e}")
-    
-    # Add this after VideoRequest class
-    class TaskResponse(BaseModel):
-        task_id: str
-        status: str
-        message: str
+
+# ========== ROUTES ==========
+@app.get("/")
+async def root():
+    return {"message": "AI Video Generator API", "status": "running"}
 
 @app.post("/api/generate", response_model=TaskResponse)
 async def generate_video(request: VideoRequest, background_tasks: BackgroundTasks):
@@ -161,9 +155,8 @@ async def get_status(task_id: str):
         "video_id": task.get("video_id")
     }
     
-    # Change this in get_status endpoint:
     if task.get("video_id"):
-        response["video_url"] = f"/output/{task['video_id']}.mp4"  # Changed from /api/videos/
+        response["video_url"] = f"/output/{task['video_id']}.mp4"
     
     return response
 
@@ -173,11 +166,6 @@ async def get_video(video_id: str):
     
     if not os.path.exists(video_path):
         raise HTTPException(status_code=404, detail="Video not found")
-
-    return {
-        "download_url": f"/output/{video_id}.mp4",
-        "stream_url": f"/api/videos/{video_id}"
-    }
     
     # Clean up old videos
     cleanup_old_videos()
@@ -187,6 +175,18 @@ async def get_video(video_id: str):
         media_type="video/mp4",
         filename=f"ai-video-{video_id}.mp4"
     )
+
+@app.get("/api/download/{video_id}")
+async def download_video(video_id: str):
+    video_path = f"output/{video_id}.mp4"
+    
+    if not os.path.exists(video_path):
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    return {
+        "download_url": f"/output/{video_id}.mp4",
+        "stream_url": f"/api/videos/{video_id}"
+    }
 
 @app.get("/api/styles")
 async def get_styles():
@@ -219,65 +219,7 @@ async def get_avatars():
     ]
     return avatars
 
-# Background task
-# Add this function (replace your existing process_video_task)
-async def process_video_task(task_id: str, request: VideoRequest):
-    """MVP: Simple pipeline - Prompt → Image → Voice → Video"""
-    try:
-        from services.video_service import VideoService
-        video_service = VideoService()
-        
-        tasks[task_id]["progress"] = 10
-        # Inside process_video_task, add this line after setting progress:
-        tasks[task_id]["status"] = "processing"  # Add this line
-        tasks[task_id]["message"] = "Processing prompt..."
-        
-        # MVP: Just use the whole prompt as one scene
-        scene = request.script
-        
-        tasks[task_id]["progress"] = 30
-        tasks[task_id]["message"] = "Creating image..."
-        
-        # Generate placeholder image
-        image_path = await video_service.create_placeholder_image(
-            prompt=scene,
-            filename=f"scene_{task_id}"
-        )
-        
-        tasks[task_id]["progress"] = 50
-        tasks[task_id]["message"] = "Generating voice..."
-        
-        # Generate voice (limit to 100 chars for speed)
-        text_for_voice = scene[:100] if len(scene) > 100 else scene
-        audio_path = await video_service.generate_simple_voice(
-            text=text_for_voice,
-            voice_type=request.voice
-        )
-        
-        tasks[task_id]["progress"] = 70
-        tasks[task_id]["message"] = "Creating video..."
-        
-        # Create Ken Burns video
-        video_id = f"video_{uuid.uuid4().hex[:8]}"
-        final_path = await video_service.create_ken_burns_video(
-            image_path=image_path,
-            audio_path=audio_path,
-            output_id=video_id
-        )
-        
-        tasks[task_id]["progress"] = 100
-        tasks[task_id]["status"] = "completed"
-        tasks[task_id]["message"] = "Video ready!"
-        tasks[task_id]["video_id"] = video_id
-        
-        print(f"✅ Video generated: {final_path}")
-        
-    except Exception as e:
-        tasks[task_id]["status"] = "failed"
-        tasks[task_id]["message"] = f"Error: {str(e)}"
-        print(f"❌ Task failed: {e}")
-
-
+# ========== UTILITY FUNCTIONS ==========
 def cleanup_old_videos():
     """Clean up videos older than 24 hours"""
     now = datetime.now()
