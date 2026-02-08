@@ -8,6 +8,8 @@ import uuid
 import os
 from datetime import datetime, timedelta
 import shutil
+import uuid
+import asyncio
 
 app = FastAPI(title="AI Video Generator API", version="1.0.0")
 
@@ -149,73 +151,61 @@ async def get_avatars():
     return avatars
 
 # Background task
+# Add this function (replace your existing process_video_task)
 async def process_video_task(task_id: str, request: VideoRequest):
+    """MVP: Simple pipeline - Prompt → Image → Voice → Video"""
     try:
-        # Import services here to avoid circular imports
         from services.video_service import VideoService
         video_service = VideoService()
         
-        # Update progress
-        tasks[task_id]["status"] = "processing"
         tasks[task_id]["progress"] = 10
-        tasks[task_id]["message"] = "Processing script..."
+        tasks[task_id]["message"] = "Processing prompt..."
         
-        # Step 1: Process script into scenes
-        scenes = video_service.process_script(request.script)
+        # MVP: Just use the whole prompt as one scene
+        scene = request.script
         
-        tasks[task_id]["progress"] = 20
-        tasks[task_id]["message"] = "Generating images..."
+        tasks[task_id]["progress"] = 30
+        tasks[task_id]["message"] = "Creating image..."
         
-        # Step 2: Generate images
-        image_paths = []
-        for i, scene in enumerate(scenes[:5]):
-            img_path = await video_service.generate_image(scene, request.style, i)
-            image_paths.append(img_path)
-            
-            # Update progress
-            progress = 20 + (i + 1) * 15
-            tasks[task_id]["progress"] = min(progress, 50)
+        # Generate placeholder image
+        image_path = await video_service.create_placeholder_image(
+            prompt=scene,
+            filename=f"scene_{task_id}"
+        )
         
         tasks[task_id]["progress"] = 50
-        tasks[task_id]["message"] = "Generating voiceover..."
+        tasks[task_id]["message"] = "Generating voice..."
         
-        # Step 3: Generate voice
-        audio_path = await video_service.generate_voice(request.script[:500], request.voice)
-        
-        tasks[task_id]["progress"] = 60
-        tasks[task_id]["message"] = "Creating avatar..."
-        
-        # Step 4: Generate avatar video
-        avatar_path = None
-        if request.avatar != "none":
-            avatar_path = await video_service.generate_avatar(request.avatar, audio_path)
+        # Generate voice (limit to 100 chars for speed)
+        text_for_voice = scene[:100] if len(scene) > 100 else scene
+        audio_path = await video_service.generate_simple_voice(
+            text=text_for_voice,
+            voice_type=request.voice
+        )
         
         tasks[task_id]["progress"] = 70
-        tasks[task_id]["message"] = "Composing video..."
+        tasks[task_id]["message"] = "Creating video..."
         
-        # Step 5: Create final video
-        video_id = str(uuid.uuid4())
-        video_path = await video_service.create_video(
-            image_paths=image_paths,
+        # Create Ken Burns video
+        video_id = f"video_{uuid.uuid4().hex[:8]}"
+        final_path = await video_service.create_ken_burns_video(
+            image_path=image_path,
             audio_path=audio_path,
-            avatar_path=avatar_path,
-            style=request.style,
             output_id=video_id
         )
         
         tasks[task_id]["progress"] = 100
         tasks[task_id]["status"] = "completed"
-        tasks[task_id]["message"] = "Video generated successfully!"
+        tasks[task_id]["message"] = "Video ready!"
         tasks[task_id]["video_id"] = video_id
         
-        # Clean up temp files
-        video_service.cleanup_temp_files()
+        print(f"✅ Video generated: {final_path}")
         
     except Exception as e:
         tasks[task_id]["status"] = "failed"
         tasks[task_id]["message"] = f"Error: {str(e)}"
-        tasks[task_id]["error"] = str(e)
-        print(f"Task {task_id} failed: {e}")
+        print(f"❌ Task failed: {e}")
+
 
 def cleanup_old_videos():
     """Clean up videos older than 24 hours"""
