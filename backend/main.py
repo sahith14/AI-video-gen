@@ -219,6 +219,10 @@ async def get_avatars():
     ]
     return avatars
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
 # ========== UTILITY FUNCTIONS ==========
 def cleanup_old_videos():
     """Clean up videos older than 24 hours"""
@@ -232,6 +236,7 @@ def cleanup_old_videos():
                     os.remove(file_path)
                 except:
                     pass
+                    
 
 # Cleanup on startup
 cleanup_old_videos()
