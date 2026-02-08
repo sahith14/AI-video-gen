@@ -110,93 +110,49 @@ class VideoService:
             '-t', '10', output_path
         ], capture_output=True)
         return output_path
-
-    def create_animated_video_from_images(
-    self,
-    images: list,
-    audio_path: str,
-    output_id: str
-) -> str:
-    clips = []
-
-    # 1. Animate each image into a clip
-    for i, img in enumerate(images):
-        clip_path = f"{self.temp_dir}/clip_{i}.mp4"
-        animate_single_image(img, clip_path)
-        clips.append(clip_path)
-
-    # 2. Create concat file
-    concat_path = f"{self.temp_dir}/clips.txt"
-    with open(concat_path, "w") as f:
-        for c in clips:
-            f.write(f"file '{os.path.abspath(c)}'\n")
-
-    # 3. Concatenate clips (no audio yet)
-    silent_video = f"{self.temp_dir}/video_no_audio.mp4"
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", concat_path,
-        "-c", "copy",
-        silent_video
-    ], check=True)
-
-    # 4. Merge audio
-    final_path = f"{self.output_dir}/{output_id}.mp4"
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-i", silent_video,
-        "-i", audio_path,
-        "-shortest",
-        final_path
-    ], check=True)
-
-    return final_path
     
-    async def create_ken_burns_video(self, image_path: str, audio_path: str, output_id: str) -> str:
-        """Create video with Ken Burns effect"""
-        output_path = f"{self.output_dir}/{output_id}.mp4"
-        
-        # Get audio duration
-        duration = 10
-        try:
-            import subprocess
-            result = subprocess.run([
-                'ffprobe', '-v', 'error', '-show_entries', 
-                'format=duration', '-of', 
-                'default=noprint_wrappers=1:nokey=1', audio_path
-            ], capture_output=True, text=True)
-            
-            if result.returncode == 0:
-                duration = float(result.stdout.strip())
-        except:
-            pass
-        
-        # FFmpeg command
-        cmd = [
-            'ffmpeg', '-y',
-            '-loop', '1',
-            '-i', image_path,
-            '-i', audio_path,
-            '-vf', f"scale=1080:1920,zoompan=z='zoom+0.0015':d={int(duration*30)}:s=1080x1920",
-            '-t', str(duration),
-            '-c:v', 'libx264',
-            '-c:a', 'aac',
-            '-shortest',
-            '-pix_fmt', 'yuv420p',
-            output_path
-        ]
-        
-        try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True)
-            print(f"✅ Video created: {output_path}")
-            return output_path
-        except subprocess.CalledProcessError as e:
-            print(f"❌ FFmpeg failed: {e.stderr}")
-            # Fallback: simple conversion
-            self._create_fallback_video(image_path, audio_path, output_path)
-            return output_path
+    def create_animated_video_from_images(
+        self,
+        images: list,
+        audio_path: str,
+        output_id: str
+    ) -> str:
+        clips = []
+
+        # 1. Animate each image into a clip
+        for i, img in enumerate(images):
+            clip_path = f"{self.temp_dir}/clip_{i}.mp4"
+            animate_single_image(img, clip_path)
+            clips.append(clip_path)
+
+        # 2. Create concat file
+        concat_path = f"{self.temp_dir}/clips.txt"
+        with open(concat_path, "w") as f:
+            for c in clips:
+                f.write(f"file '{os.path.abspath(c)}'\n")
+
+        # 3. Concatenate clips (no audio yet)
+        silent_video = f"{self.temp_dir}/video_no_audio.mp4"
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", concat_path,
+            "-c", "copy",
+            silent_video
+        ], check=True)
+
+        # 4. Merge audio
+        final_path = f"{self.output_dir}/{output_id}.mp4"
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-i", silent_video,
+            "-i", audio_path,
+            "-shortest",
+            final_path
+        ], check=True)
+
+        return final_path
     
     def _create_fallback_video(self, image_path: str, audio_path: str, output_path: str):
         """Simple fallback video"""
