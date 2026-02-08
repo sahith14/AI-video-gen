@@ -11,10 +11,10 @@ import shutil
 
 app = FastAPI(title="AI Video Generator API", version="1.0.0")
 
-# CORS
+# Fix CORS - allow all origins for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "*"],
+    allow_origins=["*"],  # For development only
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
